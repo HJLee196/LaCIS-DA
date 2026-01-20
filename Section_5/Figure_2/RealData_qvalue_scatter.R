@@ -62,7 +62,7 @@ gg_dat = data.frame(lpval = (p_val_match),
 # method = c("eBH","multi")
 method = "multi"
 # knockoff = c("decomp","LR")
-knockoff = "LR"#"LR"
+knockoff = "decomp"#"LR"
 
 if(method == "eBH"){
   knk_method = paste0("e",knockoff)
@@ -70,7 +70,7 @@ if(method == "eBH"){
   knk_method = paste0(method,knockoff) 
 }
 
-load("HuVascAD_cellastrocyte_methodmultiLR_testUseMAST_downNULL_gene23537_PC43_10llam1_seed2017_maxIterImp100.rda")
+load("HuVascAD_cellastrocyte_methodmultidecomp_testUseMAST_downNULL_gene23537_PC43_10llam1_seed2017_maxIterImp100.rda")
 
 # if(knk_method == "eLR"){
 #   load(file = paste0("HuVascAD_downNULL_geneNULL_scsoftImpute_err_PC",PC,
@@ -348,7 +348,7 @@ p_B
   )
 
 ggsave(
-  "BH_vs_LaCIS_panels_HJ3.pdf",
+  "BH_vs_LaCIS_panels_HJ4.pdf",
   (p_A | p_B) +
     plot_layout(guides = "collect") +
     plot_annotation(tag_levels = "A") &
