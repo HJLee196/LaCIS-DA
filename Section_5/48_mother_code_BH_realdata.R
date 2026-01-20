@@ -152,7 +152,7 @@ if(is.null(down)){
   healthy_M <- names(HuVascAD$treat)[HuVascAD$treat %in% "Control"] 
   ad_M <- names(HuVascAD$treat)[HuVascAD$treat %in% "AD"] 
   
-  # set.seed(seed_num) # To reproduce the same results, commented
+  set.seed(seed_num)
   down_ind <- c(sample(healthy_M,down),
                 sample(ad_M,down))
   which(names(HuVascAD$treat) %in% down_ind)
@@ -343,7 +343,6 @@ for(nsim in 1:nSim){
   start_time_nsim = Sys.time()
   start_time_nsim_set = c(start_time_nsim_set, start_time_nsim)
   
-  # As Yixia mentioned, some function might have set.seed in it.
   set.seed(seed = seed_num + nsim)
   
   # Set labels to be observed ones
@@ -547,8 +546,6 @@ for(nsim in 1:nSim){
 # 5. Save the results
 ####
 
-# outputname = paste0("HuVascAD_downNULL_geneNULL_BH_PC",PC, "_","hippo_onlyFALSE_",cell_name,"_.rda" )
-# save(FinalResult,file = outputname)
 save(FinalResult,
      file = file_name)
 
