@@ -1,13 +1,21 @@
 #  Section 5 - Real Data Analysis Code
 #Knockoffs
 
-- This document describes how to use `43_44_mother_code_multiLR_realdata-AllPart12.R`, `46_47_mother_code_multidecomp_realdata-AllPart12.R`, and `99_SummaryAll_4_Simulation 5_realdata.R`.
+- This document describes how to use the following simulation files:
+  - `43_44_mother_code_multiLR_realdata-AllPart12.R`
+  - `46_47_mother_code_multidecomp_realdata-AllPart12.R`
+  - `48_mother_code_BH_realdata.R` 
 
-1. `43_44_mother_code_multiLR_realdata-AllPart12.R` and `46_47_mother_code_multidecomp_realdata-AllPart12.R`
+- It also describes the following summary files:
+  - `99_SummaryAll_4_Simulation 5_realdata.R`.
+
+1. `43_44_mother_code_multiLR_realdata-AllPart12.R`,`46_47_mother_code_multidecomp_realdata-AllPart12.R`, and `48_mother_code_BH_realdata.R`
    - `43_44_mother_code_multiLR_realdata-AllPart12.R`
      - Code for reproducing the multi-LR/e-LR results in the real data analysis in Section 5.
    - `46_47_mother_code_multidecomp_realdata-AllPart12.R`
      - Code for reproducing the multi-decomp/e-decomp results in the real data analysis in Section 5.
+   - `48_mother_code_BH_realdata.R`
+     - Code for reproducing the BH results in the real data analysis in Section 5.
      
    - Required datasets:
      - `HuVascAD_astrocyte.rds`
@@ -33,7 +41,7 @@
      - `llam`: A scalar that controls the lambda value for sc-softImpute.
        - It can take any nonnegative value. The final lambda is computed by multiplying this value by the largest singular value of the data matrix. i.e., `llam*softImpute::lambda0(data.matrix)` is used.
      - `m_kos`: The number of knockoffs to generate for the multiple-knockoff procedure.
-     - `testUse`: The method used to compute test statistics.  One of `"LCD"`, `"LR"`, `"MAST"`, or `"wilcox_limma"`. `"wilcox_limma"` does not use latent variables.
+     - `testUse`: The method used to compute test statistics.  One of `"LCD"`, `"LR"`, `"MAST"`, or `"wilcox_limma"`. `"LCD"` cannot be used with the BH procedure. `"wilcox_limma"` does not use latent variables.
      - `max_iter_imp`: The maximum number of iterations allowed for sc-softImpute.
      
    - The scripts `43_44_mother_code_multiLR_realdata-AllPart12.R` and `46_47_mother_code_multidecomp_realdata-AllPart12.R` consist of two parts:
@@ -62,7 +70,7 @@
      - Each script is split into two parts for computational efficiency when running on a high-performance computing platform. For each knockoff construction method, knockoffs need to be created only once to compute`"LCD"`, `"LR"`, `"MAST"`, and `"wilcox_limma"`.
 
 2. `99_SummaryAll_4_Simulation 5_realdata.R`
-   - This code produces Table 3in Section 5.
+   - This code produces Table 3 in Section 5.
    - The current working directory must be set to the directory where the `.rda` files are stored.
      - These `.rda` files are the results generated in the final part of 
        `43_44_mother_code_multiLR_realdata-AllPart12.R` and 

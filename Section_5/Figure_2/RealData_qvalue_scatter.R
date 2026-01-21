@@ -348,7 +348,7 @@ p_B
   )
 
 ggsave(
-  "BH_vs_LaCIS_panels_HJ4.pdf",
+  "BH_vs_LaCIS_panels.pdf",
   (p_A | p_B) +
     plot_layout(guides = "collect") +
     plot_annotation(tag_levels = "A") &
