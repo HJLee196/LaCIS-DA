@@ -56,6 +56,7 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 #### 
 
 HuVascAD = readRDS(file = 'path/to/HuVascAD_seuratcluster3.rds')
+# HuVascAD = readRDS(file = './HuVascAD_seuratcluster3.rds')
 HuVascAD = subset(HuVascAD, cells = which(HuVascAD$region %in% "Hippocampus"))
 table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
@@ -65,9 +66,9 @@ table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
 seed_num = 2017
 set.seed(seed_num)
-down = 1500
+down = 3000
 gene.index = 1:3000
-sign_strength = 30
+sign_strength = 3
 n_signal = 50
 PC = 13
 llam = 0.1 
@@ -259,12 +260,11 @@ X_0 = tmp@cell.embeddings
 rm(tmp)
 
 X_0 <- cbind(covariate_imp_mat,X_0)
-
 X_0 <- sweep(X_0,2,colMeans(X_0),FUN = "-")
 
 start_time_imp = Sys.time()
 
-lambda = lambda0(xp_data.matrix.imp)*llam #221.682 = Largest Singularvalue
+lambda = lambda0(xp_data.matrix.imp)*llam 
 print(paste0("lambda: ",round(lambda/llam,2)))
 
 # Ip = diag(x = 1, nrow = ncol(X_0))

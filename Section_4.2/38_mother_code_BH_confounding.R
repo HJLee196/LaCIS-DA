@@ -57,6 +57,7 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 #### 
 
 HuVascAD = readRDS(file = 'path/to/HuVascAD_seuratcluster3.rds')
+# HuVascAD = readRDS(file = './HuVascAD_seuratcluster3.rds')
 HuVascAD = subset(HuVascAD, cells = which(HuVascAD$region %in% "Hippocampus"))
 table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
@@ -66,9 +67,9 @@ table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
 seed_num = 2017
 set.seed(seed_num)
-down = 500
+down = 3000
 gene.index = 1:3000
-sign_strength = 2
+sign_strength = 3
 n_signal = 50
 PC = 13
 llam = 0.1 
@@ -108,7 +109,7 @@ print(covariate_names)
 
 k_num = 3 + length(unique(HuVascAD$gender)) - 1 + length(unique(HuVascAD$batch)) - 1
 
-testUse = "wilcox_limma" # c("wilcox_limma", "LR", "MAST", "LCD")
+testUse = "LR" # c("wilcox_limma", "LR", "MAST", "LCD")
 LCD_crit_use = "lambda.1se"
 max_iter_imp = 100
 

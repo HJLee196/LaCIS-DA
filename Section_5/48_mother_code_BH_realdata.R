@@ -78,9 +78,10 @@ mean_fxn_v4 <- function(x) {
 ####
 # 1-2. Read the dataset
 #### 
-# "path/to/your/rds_folder"
+
 file_path = "path/to/your/rds_folder"
-cell_name = 'astrocyte'
+# file_path = "./"
+cell_name = 'microglia'
 data_name = 
   paste0("HuVascAD_", 
          cell_name,
@@ -97,10 +98,10 @@ max_gene = rownames(HuVascAD) %>% length()
 seed_num = 17
 
 set.seed(seed_num)
-down = NULL
+down = 200
 gene.index = 1:max_gene
 n_signal = 50
-PC = 43
+PC = 11
 llam = 0.1 
 nSim = 1
 m_kos = 10 # the number of the sets of knockoffs

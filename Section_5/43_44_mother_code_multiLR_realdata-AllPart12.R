@@ -70,7 +70,8 @@ ebh <- function(E, alpha){
 #### 
 
 file_path = "path/to/your/rds_folder"
-cell_name = 'astrocyte'
+# file_path = "./"
+cell_name = 'microglia'
 data_name = 
   paste0("HuVascAD_", 
          cell_name,
@@ -89,7 +90,7 @@ set.seed(seed_num)
 down = 200
 gene.index = 1:max_gene
 n_signal = 50
-PC = 43
+PC = 11
 llam = 0.1 
 nSim = 1
 m_kos = 10 # the number of the sets of knockoffs
@@ -526,7 +527,7 @@ for(nsim in 1:nSim){
   {
     # use observed values to find p-values
     # shouldn't matter which slot I change as long as I use it.
-    xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.matrix))
+    xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.matrix))
     
     result.sub <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
                             min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names)
@@ -540,7 +541,7 @@ for(nsim in 1:nSim){
       print(m_ko)
       xp_data.knockoff.sav = xp_data.knockoff.sav_list[[m_ko]]
       
-      xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.knockoff.sav))
+      xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.knockoff.sav))
       
       # Find p-values for knockoffs
       result.sub.k <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
