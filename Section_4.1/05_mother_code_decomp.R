@@ -56,6 +56,7 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 #### 
 
 superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+# superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
 superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe) 
 superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 
@@ -164,7 +165,7 @@ B_0 = solve(t(X_0)%*%X_0)%*%t(X_0)%*%xp_data.matrix.imp
 
 start_time_imp = Sys.time()
 
-lambda = lambda0(xp_data.matrix.imp)*llam #252.0684 = Largest Singular Value
+lambda = lambda0(xp_data.matrix.imp)*llam 
 print(paste0("lambda: ",round(lambda/llam,2)))
 
 xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp,

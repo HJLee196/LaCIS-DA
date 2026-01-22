@@ -49,12 +49,12 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
   return(list(Yl_imp,Xl,Bl))
 }
 
-
 ####
 # 1-2. Read the dataset
 #### 
 
 superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+# superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
 superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe)
 superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 
@@ -68,7 +68,7 @@ down = 500
 gene.index = 1:2000
 sign_strength = 3
 n_signal = 50
-PC = 20
+PC = 30
 llam = 0.1 # max_singular X llam (0.1 in the original one)
 nSim = 1
 m_kos = 5 # the number of the sets of knockoffs
@@ -164,7 +164,7 @@ B_0 = solve(t(X_0)%*%X_0)%*%t(X_0)%*%xp_data.matrix.imp
 
 start_time_imp = Sys.time()
 
-lambda = lambda0(xp_data.matrix.imp)*llam #252.0684 = Largest Singular Value
+lambda = lambda0(xp_data.matrix.imp)*llam 
 print(paste0("lambda: ",round(lambda/llam,2)))
 
 xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp,
@@ -416,7 +416,7 @@ for(nsim in 1:nSim){
   {
     # use observed values to find p-values
     # shouldn't matter which slot I change as long as I use it.
-    xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.matrix))
+    xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.matrix))
     
     result.sub <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
                               min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names)
@@ -430,7 +430,7 @@ for(nsim in 1:nSim){
       print(m_ko)
       xp_data.knockoff.sav = xp_data.knockoff.sav_list[[m_ko]]
     
-      xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.knockoff.sav))
+      xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.knockoff.sav))
       
       # Find p-values for knockoffs
       result.sub.k <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",

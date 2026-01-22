@@ -56,6 +56,7 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 #### 
 
 superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+# superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
 superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe) 
 superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 

@@ -55,6 +55,7 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 #### 
 
 superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+# superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
 superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe)
 superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 
@@ -66,9 +67,9 @@ seed_num = 2017
 set.seed(seed_num)
 down = 500
 gene.index = 1:2000
-sign_strength=3
+sign_strength = 3
 n_signal = 50
-PC = 20
+PC = 30
 llam = 0.1 # max_singular X llam (0.1 in the original one)
 nSim = 1
 m_kos = 5 # the number of the sets of knockoffs
@@ -350,7 +351,7 @@ for(nsim in 1:nSim){
   {
     # use observed values to find p-values
     # shouldn't matter which slot I change as long as I use it.
-    xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.matrix))
+    xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.matrix))
     
     result.sub <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
                               min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names)
@@ -365,7 +366,7 @@ for(nsim in 1:nSim){
       xp_data.knockoff.sav = xp_data.knockoff.sav_list[[m_ko]]
       
       # Instead "Create a copy of xp_data.sub -- expresc2", I used the layer "scale.data" for the knockoffs - HJ
-      xp_data.sub <- SetAssayData(object = xp_data.sub, slot = "data", new.data = t(xp_data.knockoff.sav))
+      xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.knockoff.sav))
       
       # Find p-values for knockoffs
       result.sub.k <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
