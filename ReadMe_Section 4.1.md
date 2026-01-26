@@ -1,4 +1,4 @@
-# Section 4.1
+# ReadMe_Section 4.1
 #Knockoffs
 
 - This document describes how to use the following simulation files:
@@ -28,7 +28,7 @@
      - `combined_superior_parietal_lobe.rds`
      
    - Hyperparameters the user needs to specify:
-     - `file_path`: The directory where the dataset is stored.
+     - `file_path`: For this code, specify the file path directly in `superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')`.
      - `down`: The number of cells to be used (*n*).
        - Set to `NULL` to use all cells.
      - `gene.index`: A vector specifying the genes to be used (*p*).

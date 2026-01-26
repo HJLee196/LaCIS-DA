@@ -198,7 +198,7 @@ final_summarize_type1 =
 
 
 final_summarize_name = 
-  str_c("Section42_Table1_LR_nSim20",
+  str_c("Section42_Table1_LR",
         "_Down", down_name)
 
 ###########

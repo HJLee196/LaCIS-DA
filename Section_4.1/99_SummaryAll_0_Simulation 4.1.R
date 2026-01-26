@@ -265,4 +265,4 @@ final_summarize =
             med_FDP = median(FDP),
             avg_Power = mean(Power))
 
-write.csv(x = final_summarize, file = "Sim41_Figure1_251215.csv", row.names = F)
+write.csv(x = final_summarize, file = "Sim41_Figure1.csv", row.names = F)

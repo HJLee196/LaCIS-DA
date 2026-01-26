@@ -1,4 +1,4 @@
-#  Section 5 - Real Data Analysis Code
+# ReadMe_Section 5 - Real Data Analysis Code
 #Knockoffs
 
 - This document describes how to use the following simulation files:
@@ -16,6 +16,8 @@
      - Code for reproducing the multi-decomp/e-decomp results in the real data analysis in Section 5.
    - `48_mother_code_BH_realdata.R`
      - Code for reproducing the BH results in the real data analysis in Section 5.
+   - `66_67_mother_code_multidecomp_realdata-AllPart12.R`
+     - Code similar to `46_47_mother_code_multidecomp_realdata-AllPart12.R`, but using the covariance matrix without conditioning on the covariates.
      
    - Required datasets:
      - `HuVascAD_astrocyte.rds`
@@ -25,7 +27,7 @@
      - `HuVascAD_pericyte.rds`
      
    - Hyperparameters the user needs to specify:
-     - `file_path`: The directory where the dataset is stored.
+     - `file_path`: The directory where the dataset is stored, excluding the dataset file name (e.g., `path/to/your/rds_folder`, not `path/to/your/rds_folder/rds_file.rds`).
      - `cell_name`: A name that specifies the dataset. One of `"astrocyte"`, `"microglia"`, `"neuron"`, `"oligo"`, and `"pericyte"`.
      - `down`: The number of cells to be used (*n*).
        - Set to `NULL` to use all cells.

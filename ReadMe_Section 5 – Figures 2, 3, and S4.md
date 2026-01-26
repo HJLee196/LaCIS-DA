@@ -1,4 +1,4 @@
-# Section 5 – Figures 2, 3, and S4
+# ReadMe_Section 5 – Figures 2, 3, and S4
 #Knockoffs
 
 - This document describes how to use the following code to generate Figures 2, 3, and S4:

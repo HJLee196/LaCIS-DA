@@ -135,4 +135,4 @@ final_summarize =
 
 final_summarize
 
-write.csv(x = final_summarize, file = "Sim5_Table3_260105.csv", row.names = F)
+write.csv(x = final_summarize, file = "Sim5_Table3.csv", row.names = F)

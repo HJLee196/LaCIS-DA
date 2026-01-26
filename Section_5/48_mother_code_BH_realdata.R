@@ -470,7 +470,7 @@ for(nsim in 1:nSim){
   #xp_data.sub$batch <- as.factor(xp_data.sub$batch)
   #xp_data.sub$gender<- as.factor(xp_data.sub$gender)
   result.sub.wrt <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
-                               min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="wilcox",
+                               min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="wilcox_limma",
                                latent.vars = NULL, mean.fxn = mean_fxn_v4)
   # result.sub_7covariate <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
   #                           min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="MAST",
@@ -497,7 +497,7 @@ for(nsim in 1:nSim){
   #xp_data.sub$gender<- as.factor(xp_data.sub$gender)
   latent.vars.list <- c(c("gender","age","age2","batch","CDR"), paste0("Factor_", c(1:PC)))
   result.sub.wrt.adj <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
-                                   min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="wilcox",
+                                   min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="wilcox_limma",
                                    latent.vars = NULL, mean.fxn = mean_fxn_v4)
   # result.sub_7covariate <- FindMarkers(xp_data.sub, ident.1 = 'Control', ident.2 = 'AD', slot = "data",
   #                           min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use ="MAST",

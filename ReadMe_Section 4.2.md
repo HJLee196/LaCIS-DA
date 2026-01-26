@@ -1,4 +1,4 @@
-# Section 4.2
+# ReadMe_Section 4.2
 #Knockoffs
 
 - This document describes how to use the following simulation files:
@@ -17,7 +17,7 @@
      - `HuVascAD_seuratcluster3.rds` 
 
    - Hyperparameters the user needs to specify:
-     - `file_path`: For this code, specify the file path directly in `HuVascAD = readRDS(file = "path/to/file.rds")`. 
+     - `file_path`: For this code, specify the file path directly in `HuVascAD = readRDS(file = "path/to/file.rds")`.
      - `down`: The number of cells to be used (*n*).
        - Set to `NULL` to use all cells.
      - `gene.index`: A vector specifying the genes to be used (*p*).
