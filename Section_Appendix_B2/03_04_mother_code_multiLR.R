@@ -15,7 +15,6 @@ library(MAST)
 library(Matrix)
 library(softImpute)
 library(glmnet)
-library(mvnfast) # create.gaussian
 
 lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
   
@@ -55,10 +54,10 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 # 1-2. Read the dataset
 #### 
 
-HuVascAD = readRDS(file = 'path/to/HuVascAD_seuratcluster3.rds')
-# HuVascAD = readRDS(file = './HuVascAD_seuratcluster3.rds')
-HuVascAD = subset(HuVascAD, cells = which(HuVascAD$region %in% "Hippocampus"))
-table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
+# superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
+superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe)
+superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 
 ####
 # 1-3. Set hyperparameters
@@ -66,51 +65,15 @@ table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
 seed_num = 2017
 set.seed(seed_num)
-down = 3000
-gene.index = 1:3000
+down = 500
+gene.index = 1:2000
 sign_strength = 3
 n_signal = 50
-PC = 13
-llam = 0.1 
+PC = 30
+llam = 0.1 # max_singular X llam (0.1 in the original one)
 nSim = 1
-
-# Prespecify how many variables are fixed during the imputation
-batch_option = "with" # "with" "without" "permute"
-CDR_impute_option = "with"
-CDR_p_compute_option = "with"
-
-impute_cov_names = c("CDR", "age", "age2", "gender", "batch")
-covariate_names = c("CDR", "age", "age2", "gender", "batch")
-
-batch_original = HuVascAD$batch
-
-if (batch_option == "permute") {
-  batch_permuted = sample(HuVascAD$batch)
-  names(batch_permuted) = names(HuVascAD$batch)
-  HuVascAD$batch = batch_permuted
-  
-} else if (batch_option == "without") {
-  impute_cov_names = impute_cov_names[impute_cov_names != "batch"]
-  covariate_names = covariate_names[covariate_names != "batch"]
-}
-
-if (CDR_impute_option == "without") {
-  impute_cov_names = impute_cov_names[impute_cov_names != "CDR"]
-}
-
-if (CDR_p_compute_option == "without") {
-  covariate_names = covariate_names[covariate_names != "CDR"] 
-}
-
-cat("batch option:", batch_option, "\n")
-cat("CDR impute option:", CDR_impute_option, "\n")
-print(impute_cov_names)
-cat("CDR p compute option:", CDR_p_compute_option, "\n")
-print(covariate_names)
-
-k_num = 3 + length(unique(HuVascAD$gender)) - 1 + length(unique(HuVascAD$batch)) - 1 # 7
-
-testUse = "LR" # c("wilcox_limma", "LR", "MAST", "LCD")
+m_kos = 5 # the number of the sets of knockoffs
+testUse = "LCD" # c("wilcox_limma", "LR", "MAST", "LCD")
 LCD_crit_use = "lambda.1se"
 max_iter_imp = 100
 
@@ -123,38 +86,33 @@ hyperparam_used_list =
        PC = PC,
        llam = llam,
        nSim = nSim,
-       k_num = k_num,
        max_iter_imp = max_iter_imp,
-       testUse = testUse,
-       covariate_names = covariate_names,
-       impute_cov_names = impute_cov_names
-  )
+       testUse = testUse)
 
 ####
 # 1-4. Downsample the data
 ####
 
 if(is.null(down)){
-  test_data <- HuVascAD # use full dataset
+  test_data <- superior_parietal_lobe # use full dataset
 } else {
   # Manually downsample the data:
-  healthy_M <- names(HuVascAD$treat)[HuVascAD$treat %in% "Control"] 
-  ad_M <- names(HuVascAD$treat)[HuVascAD$treat %in% "AD"] # length(ad_M) + length(healthy_M) 12193
-
-  down_ind <- c(sample(healthy_M,down),
-                sample(ad_M,down))
+  healthy_M <- names(superior_parietal_lobe@active.ident)[superior_parietal_lobe@active.ident %in% "healthy_Microglia"] 
+  ad1_M <- names(superior_parietal_lobe@active.ident)[superior_parietal_lobe@active.ident %in% "ad1_Microglia"] 
+  ad2_M <- names(superior_parietal_lobe@active.ident)[superior_parietal_lobe@active.ident %in% "ad2_Microglia"] 
   
-  test_data <- subset(HuVascAD, 
-                      cells = which(names(HuVascAD$treat) %in% down_ind))
+  down_ind <- c(sample(healthy_M, size = down),
+                sample(ad1_M, size = down),
+                sample(ad2_M, size = down))
   
-  batch_original = 
-    batch_original[match(x = names(test_data$treat), table = names(batch_original))]
+  test_data <- subset(superior_parietal_lobe, 
+                      cells = which(names(superior_parietal_lobe@active.ident) %in% down_ind))
 }
-rm(HuVascAD) # rm dataset to save memory
+
+rm(superior_parietal_lobe)
 
 # Take a subset of genes
 feature.names <- rownames(test_data)[gene.index]
-
 xp_data.sub <- subset(x = test_data, features = feature.names)
 
 ####
@@ -163,14 +121,12 @@ xp_data.sub <- subset(x = test_data, features = feature.names)
 
 # Calculate CDR ####
 xp_data <- GetAssayData(object = xp_data.sub, layer = "count")
-
 xp_data.matrix.exp <- t(as.matrix(xp_data) > 0) # indicator matrix for expressed genes, 
 xp_data.matrix.exp.count <- apply(xp_data.matrix.exp,2,sum)
-
 xp_data.matrix <- (as.matrix(xp_data)) # do not transpose here. Keep the genes as rows.
 
 # exclude empty variables
-feature.exp.ind <- which(xp_data.matrix.exp.count > (PC+k_num+1)) # PC + num of X variables + intercept
+feature.exp.ind <- which(xp_data.matrix.exp.count > (PC+2+1)) # PC + num of X variables + intercept
 feature.names.new <- feature.names[feature.exp.ind]  # length(feature.names.new)
 
 xp_data.matrix.exp <- xp_data.matrix.exp[,feature.exp.ind]
@@ -183,67 +139,11 @@ xp_data <- GetAssayData(object = xp_data.sub, layer = "data") # Normalized data 
 
 xp_data.matrix <- t(as.matrix(xp_data))
 
-print(dim(xp_data.matrix))
-print(dim(xp_data.matrix.exp))
-
-# Include the covariates
-## 1. gender
-xp_data.sub$gender = xp_data.sub$gender %>% as.factor()
-xp_data.sub$gender %>% table() %>% barplot()
-## 2. CDR
 xp_data.sub$CDR = CDR
-## 3. Sample ID
-xp_data.sub$sample = xp_data.sub$sample %>% as.factor()
-xp_data.sub$sample %>% table() %>% barplot()
-## 4. batch label
-xp_data.sub$batch = xp_data.sub$batch %>% as.factor()
-xp_data.sub$batch %>% table() %>% barplot()
-## 5. age
-xp_data.sub$age %>% table() %>% barplot()
-## 6. age squared 
-xp_data.sub$age2 = xp_data.sub$age^2
-xp_data.sub$age2 %>% table() %>% barplot() 
 
-# Sample, Batch, Gender are categorical variables
-# Sample and Batch have more than 2 categories.
-samp = model.matrix(y~x-1,data.frame(x = xp_data.sub$sample, y = 1))
-samp = samp[,-1] # To set the first group to the reference group
-colnames(samp) = 
-  colnames(samp) %>%
-  str_replace(pattern = "^x", replacement = "sample_")
-
-batch = model.matrix(y~x-1,data.frame(x = xp_data.sub$batch, y = 1))
-batch = batch[,-1] # To set the first group to the reference group
-colnames(batch) = 
-  colnames(batch) %>%
-  str_replace(pattern = "^x", replacement = "batch_")
-
-# Generate the covariate matrix
-# Standardize the age variable
-covariate_mat = 
-  cbind(xp_data.sub$CDR, 
-        xp_data.sub$age,
-        as.numeric(xp_data.sub$gender),
-        samp, 
-        batch)
-colnames(covariate_mat)[1:4] = c("CDR", "age", "age2", "gender")
-
-covariate_imp_pattern = impute_cov_names %>% str_c(collapse = "|") %>% str_replace(pattern = "(^.*$)", replacement = "\\^(\\1)")
-
-selected_covariate_imp_ind = 
-  colnames(covariate_mat) %>%
-  str_starts(pattern = covariate_imp_pattern)
-selected_covariate_imp = colnames(covariate_mat)[selected_covariate_imp_ind]
-
-covariate_p_pattern = covariate_names %>% str_c(collapse = "|") %>% str_replace(pattern = "(^.*$)", replacement = "\\^(\\1)")
-
-selected_covariate_p_ind = 
-  colnames(covariate_mat) %>%
-  str_starts(pattern = covariate_p_pattern)
-selected_covariate_p = colnames(covariate_mat)[selected_covariate_p_ind]
-
-covariate_imp_mat = covariate_mat[,selected_covariate_imp]
-covariate_p_mat = covariate_mat[,selected_covariate_p]
+covariate_mat = cbind((xp_data.sub$sex),CDR)
+covariate_names = c("sex", "CDR")
+colnames(covariate_mat) = covariate_names
 
 ####
 # 2. Impute missing components
@@ -259,16 +159,14 @@ tmp = RunPCA(t(xp_data.matrix.imp), npcs = PC, verbose = F) # slot = "data", ???
 X_0 = tmp@cell.embeddings
 rm(tmp)
 
-X_0 <- cbind(covariate_imp_mat,X_0)
+X_0 <- cbind(covariate_mat,X_0)
 X_0 <- sweep(X_0,2,colMeans(X_0),FUN = "-")
+B_0 = solve(t(X_0)%*%X_0)%*%t(X_0)%*%xp_data.matrix.imp
 
 start_time_imp = Sys.time()
 
-lambda = lambda0(xp_data.matrix.imp)*llam 
+lambda = lambda0(xp_data.matrix.imp)*llam #252.0684 = Largest Singular Value
 print(paste0("lambda: ",round(lambda/llam,2)))
-
-# Ip = diag(x = 1, nrow = ncol(X_0))
-B_0 = solve(t(X_0)%*%X_0)%*%t(X_0)%*%xp_data.matrix.imp
 
 xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp,
                                   Yl = xp_data.matrix,
@@ -276,7 +174,7 @@ xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp,
                                   Bl = B_0,
                                   Xl = X_0,
                                   PC = PC,
-                                  q_ncol = ncol(covariate_imp_mat),
+                                  q_ncol = 2,
                                   lambda = lambda)
 
 xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp_l[[1]],
@@ -285,7 +183,7 @@ xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp_l[[1]],
                                   Bl = xp_data.matrix.imp_l[[3]],
                                   Xl = xp_data.matrix.imp_l[[2]],
                                   PC = PC,
-                                  q_ncol = ncol(covariate_imp_mat),
+                                  q_ncol = 2,
                                   lambda = lambda)
 
 
@@ -300,7 +198,7 @@ while (stop_crit) {
                                     Bl = xp_data.matrix.imp_l[[3]],
                                     Xl = xp_data.matrix.imp_l[[2]],
                                     PC = PC,
-                                    q_ncol = ncol(covariate_imp_mat),
+                                    q_ncol = 2,
                                     lambda = lambda)
   
   loop_compare <- sum((xp_data.matrix.imp_l[[1]] - xp_data.matrix.imp_l[[2]] %*% (xp_data.matrix.imp_l[[3]]))^2*
@@ -316,12 +214,12 @@ xp_data.matrix.imp = xp_data.matrix.imp_l[[1]]
 
 # Add noise to the imputed values
 err <- colSums((xp_data.matrix.imp - xp_data.matrix.imp_l[[2]] %*% (xp_data.matrix.imp_l[[3]]))^2)
-err <- err/(xp_data.matrix.exp.count-PC-ncol(covariate_imp_mat)-1)
+err <- err/(xp_data.matrix.exp.count-PC-2-1)
 
 n <- dim(xp_data.matrix.imp)[1]
-for(i in 1:length(err)){
-  xp_data.matrix.imp[,i] <-  xp_data.matrix.imp[,i] + rnorm(n,0,sqrt(err[i]))*(1-xp_data.matrix.exp[,i])
-}
+# for(i in 1:length(err)){
+#   xp_data.matrix.imp[,i] <- xp_data.matrix.imp[,i] + rnorm(n,0,sqrt(err[i]))*(1-xp_data.matrix.exp[,i])
+# }
 
 end_time_imp = Sys.time()
 imp_total_seconds = as.numeric(difftime(end_time_imp , start_time_imp, units = "secs"))
@@ -331,67 +229,42 @@ imp_seconds <- round(imp_total_seconds %% 60)
 print(sprintf("Spent Computation Time (Imputation): %02d:%02d:%02d", imp_hours, imp_minutes, imp_seconds))
 
 ####
-# 3. Generate knockoffs
+# 3. Generate multiple knockoffs
 ####
-
-####
-# 3-1. Compute the covariance matrix
-####
-
-# Assemble X
-X <- xp_data.matrix.imp_l[[2]]
-
-# Estimate Covariance Matrix
-colnames(X)
-
-Q_index = 1:(ncol(X)-PC)
-A_index = (max(Q_index)+1):(max(Q_index)+PC)
-
-# X_hat: fixed and given
-X_mat = X[,Q_index]
-A_hat = X[,A_index]
-
-B0_hat = t(xp_data.matrix.imp_l[[3]])[,Q_index]
-B1_hat = t(xp_data.matrix.imp_l[[3]])[,A_index]
-
-Gamma_hat = (solve(t(X_mat) %*% X_mat) %*% t(X_mat) %*% A_hat) %>% t()
-U_hat = A_hat - (X_mat %*% t(Gamma_hat))
-SigmaA_hat = (t(U_hat) %*% U_hat)/nrow(U_hat)
-
-W_hat = xp_data.matrix.imp - (X_mat %*% t(B0_hat)) - (X_mat %*% t(Gamma_hat) %*% t(B1_hat))
-SigmaG_hat = diag(err) + (B1_hat %*% SigmaA_hat %*% t(B1_hat))
-
-W <- diag(err)
-
-# generate second-order gaussian knockoff
-
-## exlcude NAs
-excl_id <- which(is.na(diag(SigmaG_hat)))
-if(length(excl_id) > 0){
-  xp_data.matrix <- xp_data.matrix[,-excl_id]
-  SigmaG_hat <- SigmaG_hat[-excl_id,-excl_id]
-  feature.names.new <- feature.names.new[-excl_id]
-  xp_data.sub <- subset(x = test_data, features = feature.names.new)
-  xp_data.matrix.fix <- xp_data.matrix.fix[-excl_id]
-  xp_data.matrix.exp <- xp_data.matrix.exp[,-excl_id]
-}
 
 rm(test_data)
 
-####
-# 3-2. Sample knockoffs
-####
-
-W_hat_imp = W_hat
+xp_data.knockoff.sav_list = list()
 
 iter_time_start_KO = Sys.time()
 
-xp_data.knockoff = 
-  create.gaussian(W_hat_imp, 
-                  mu = rep(0, times = ncol(W_hat_imp)), 
-                  Sigma = SigmaG_hat,
-                  method = "asdp",
-                  diag_s = 1.95*W)
+## scale back the original
+xp_data.matrix <- sweep(xp_data.matrix,2,xp_data.matrix.fix,FUN = "+")*(xp_data.matrix.exp)
+
+for (m_ko in 1:m_kos)
+{
+  E <- matrix(NA, nrow = dim(xp_data.matrix)[1], ncol = dim(xp_data.matrix)[2])
+  
+  for(i in 1:(dim(xp_data.matrix)[2])){
+    E[,i] = rnorm(n, mean = 0,sd = sqrt(err[i]))
+  }
+  
+  xp_data.knockoff <- xp_data.matrix.imp_l[[2]] %*% (xp_data.matrix.imp_l[[3]]) + E
+  
+  colnames(xp_data.knockoff) <- colnames(xp_data.matrix)
+  rownames(xp_data.knockoff) <- rownames(xp_data.matrix)
+  
+  ## scale back the knockoff
+  
+  xp_data.knockoff.sav <- t(t(xp_data.knockoff) + xp_data.matrix.fix)
+  xp_data.knockoff.sav <- xp_data.knockoff.sav*(xp_data.matrix.exp) + 0*(1 - xp_data.matrix.exp)
+  
+  xp_data.knockoff.sav_list[[m_ko]] = xp_data.knockoff.sav
+}
+
+rm(xp_data.matrix.imp_l)
+rm(xp_data.knockoff)
+rm(xp_data.knockoff.sav)
 
 iter_time_end_KO = Sys.time()
 
@@ -399,28 +272,7 @@ KO_total_seconds = as.numeric(difftime(iter_time_end_KO, iter_time_start_KO, uni
 KO_hours <- floor(KO_total_seconds / 3600)
 KO_minutes <- floor((KO_total_seconds %% 3600) / 60)
 KO_seconds <- round(KO_total_seconds %% 60)
-print(sprintf("Spent Computation Time (KO): %02d:%02d:%02d", KO_hours, KO_minutes, KO_seconds)) 
-
-## scale back the knockoff
-
-xp_data.matrix <- sweep(xp_data.matrix,2,xp_data.matrix.fix,FUN = "+")*(xp_data.matrix.exp)
-
-xp_data.knockoff.sav0 = xp_data.knockoff + (X_mat %*% t(B0_hat)) + (X_mat %*% t(Gamma_hat) %*% t(B1_hat))
-xp_data.knockoff.sav <- t(t(xp_data.knockoff.sav0) + xp_data.matrix.fix)
-# Use only the expressed part
-xp_data.knockoff.sav <- xp_data.knockoff.sav*(xp_data.matrix.exp) + 0*(1 - xp_data.matrix.exp) # why the later part? just for the clarity?
-
-rm(xp_data.matrix.imp_l)
-rm(xp_data.knockoff)
-rm(xp_data.knockoff.sav0)
-rm(SigmaG_hat)
-rm(Q_index, A_index)
-rm(X_mat, A_hat)
-rm(B0_hat, B1_hat)
-rm(Gamma_hat)
-rm(U_hat)
-rm(SigmaA_hat)
-rm(W_hat)
+print(sprintf("Spent Computation Time (KO): %02d:%02d:%02d", KO_hours, KO_minutes, KO_seconds))
 
 ####
 # 4. Run simulations
@@ -433,8 +285,8 @@ if (testUse == "wilcox_limma"){
 hyperparam_used_list$imp_total_seconds = imp_total_seconds
 hyperparam_used_list$KO_total_seconds = KO_total_seconds
 
+xp_data.knockoff.sav_list = xp_data.knockoff.sav_list %>% lapply(FUN = as, Class = "dgCMatrix")
 xp_data.matrix = xp_data.matrix %>% as(Class = "dgCMatrix")
-xp_data.knockoff.sav = xp_data.knockoff.sav %>% as(Class = "dgCMatrix")
 
 FinalResult = list()
 
@@ -449,11 +301,8 @@ for(nsim in 1:nSim){
   n <- dim(xp_data.matrix)[1]
   p <- dim(xp_data.matrix)[2]
   
-  # As Yixia mentioned, some function might have set.seed in it.
   set.seed(seed = seed_num + nsim)
-  # generate coefficients ####
-  
-  # Scaling Method 1: Simple
+  # generate coefficients 
   
   xp_data.matrix_sd = xp_data.matrix %>% apply(2, sd)
   xp_data.matrix_scale = 
@@ -475,9 +324,6 @@ for(nsim in 1:nSim){
     tmp_coef[i] <- new_coef
   }
   
-  ######################
-  # Filtering Scheme 1 #
-  ######################
   # xp_data.matrix_expressed_prop = xp_data.matrix_denominator/n
   # filtered_idx = ((xp_data.matrix_expressed_prop > 0.1) & (xp_data.matrix_expressed_prop < 0.3)) %>% which()
   filtered_idx = 1:p
@@ -485,11 +331,8 @@ for(nsim in 1:nSim){
   sig_coef <- sample(filtered_idx, n_signal)
   norm_coef[sig_coef] <- tmp_coef
   
-  # introduce the logit link
-  label_p = 
-    (1/(1 + exp(- (xp_data.matrix_scale %*% norm_coef + 2*sign_strength*sqrt(2*log(p)/n)*as.numeric(batch_original)))
-        )) %>% 
-    as.vector()
+  # Introduce the logit link
+  label_p <- 1/(1 + exp(- xp_data.matrix_scale %*% norm_coef)) %>% as.vector()
   rm(xp_data.matrix_scale)
   
   # Generate labels
@@ -498,29 +341,41 @@ for(nsim in 1:nSim){
   
   xp_data.sub <- SetIdent(object = xp_data.sub, value = label_ad)
   
-  # Calculate importance statistic
+  W_imp <- matrix(NA,nrow = m_kos + 1, ncol = length(feature.names.new))
+  W_imp_b <- matrix(NA,nrow = m_kos + 1, ncol = length(feature.names.new))
   
-  ## LRT, MAST, WRT, LCD ##
+  # Calculate importance statistic for each knockoffs
+  
+  ## LRT, MAST, WRT, "LCD" ##
   if (testUse != "LCD")
   {
     # use observed values to find p-values
-    # shouldn't matter which slot I change as long as I use it. # layer = slot Seurat v5 use layer instead but FindMarkers use slot for the both.
+    # shouldn't matter which slot I change as long as I use it.
     xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.matrix))
     
     result.sub <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
-                              min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names) 
+                              min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names)
     
-    xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.knockoff.sav))
+    W_imp[1,] = -log(result.sub$p_val[match(feature.names.new, rownames(result.sub))])
+    W_imp_b[1,] = -log(result.sub$p_val_adj[match(feature.names.new, rownames(result.sub))])
     
-    # Find p-values for knockoffs
-    result.sub.k <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
-                                min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names) 
-    
-    # Importance statistics
-    W_imp = -log(result.sub$p_val[match(feature.names.new, rownames(result.sub))]) + 
-      log(result.sub.k$p_val[match(feature.names.new, rownames(result.sub.k))]) # 0<= -log(p-value)
-    W_imp_b = -log(result.sub$p_val_adj[match(feature.names.new, rownames(result.sub))]) + 
-      log(result.sub.k$p_val_adj[match(feature.names.new, rownames(result.sub.k))]) # 0<= -log(p-value)
+    for (m_ko in 1:m_kos)
+    {
+      print("m_knockoffs")
+      print(m_ko)
+      xp_data.knockoff.sav = xp_data.knockoff.sav_list[[m_ko]]
+      
+      # Instead "Create a copy of xp_data.sub -- expresc2", I used the layer "scale.data" for the knockoffs - HJ
+      xp_data.sub <- SetAssayData(object = xp_data.sub, layer = "data", new.data = t(xp_data.knockoff.sav))
+      
+      # Find p-values for knockoffs
+      result.sub.k <- FindMarkers(xp_data.sub, ident.1 = 'healthy', ident.2 = 'ad', slot = "data",
+                                  min.pct = 0,logfc.threshold=0,verbose = FALSE, test.use = testUse, latent.vars = covariate_names)
+      
+      # Importance statistics
+      W_imp[1+m_ko,] = -log(result.sub.k$p_val[match(feature.names.new, rownames(result.sub.k))])
+      W_imp_b[1+m_ko,] = -log(result.sub.k$p_val_adj[match(feature.names.new, rownames(result.sub.k))])
+    }
     
     cat("####", testUse, "####", "\n")
     print(covariate_names)
@@ -528,34 +383,53 @@ for(nsim in 1:nSim){
     ## LCD ##
     set.seed(seed = seed_num + nsim) # for reproducibility of cv.glmnet
     
-    xp_data.matrix_sd = 
-      rbind(xp_data.matrix, xp_data.knockoff.sav) %>%
-      apply(2, sd)
+    n_total = n*(m_kos + 1) #kos + original
     
-    xp_data.matrix_scale =
+    xp_data.matrix.sum <- Matrix::colSums(xp_data.matrix)
+    xp_data.knockoff.sum <-
+      Reduce(`+`, lapply(xp_data.knockoff.sav_list, \(x) Matrix::colSums(x)))
+    
+    xp_data.all.mean <- (xp_data.matrix.sum + xp_data.knockoff.sum)/n_total
+    
+    xp_data.matrix.sq_sum <- Matrix::colSums(xp_data.matrix*xp_data.matrix)
+    xp_data.knockoff.sq_sum <-
+      Reduce(`+`, lapply(xp_data.knockoff.sav_list, \(x) Matrix::colSums(x*x)))
+    
+    xp_data.all.sq_mean <- (xp_data.matrix.sq_sum + xp_data.knockoff.sq_sum)/n_total
+    
+    xp_data.all.var <- xp_data.all.sq_mean - xp_data.all.mean^2
+    xp_data.matrix_sd <- sqrt((n_total/(n_total - 1)) * pmax(xp_data.all.var, 0))
+    
+    xp_data.full = 
       xp_data.matrix %>%
-      sweep(2, xp_data.matrix_sd, "/")
+      # sweep(MARGIN = 2, STATS = xp_data.all.mean, FUN = "-") %>%
+      sweep(MARGIN = 2, STATS = xp_data.matrix_sd, FUN = "/")
     
-    xp_data.knockoff.sav_scale = 
-      xp_data.knockoff.sav %>%
-      sweep(2, xp_data.matrix_sd, "/")
+    for (m_ko in 1:m_kos)
+    {
+      xp_data.knockoff.sav_scale = 
+        xp_data.knockoff.sav_list[[m_ko]] %>%
+        # sweep(MARGIN = 2, STATS = xp_data.all.mean, FUN = "-") %>%
+        sweep(MARGIN = 2, STATS = xp_data.matrix_sd, FUN = "/")
+      # xp_data.knockoff.sav_scale %>% apply(2, sd) %>% head()
+      colnames(xp_data.knockoff.sav_scale) = str_c(colnames(xp_data.matrix), "_", m_ko)
+      xp_data.full = cbind(xp_data.full, xp_data.knockoff.sav_scale)
+    }
     
-    colnames(xp_data.knockoff.sav_scale) = str_c(colnames(xp_data.matrix_scale), "_1")
-    
-    covariate_p_mat_center = covariate_p_mat %>% scale()
+    covariate_mat_center = covariate_mat %>% scale()
     cat("####", testUse, "####", "\n")
-    colnames(covariate_p_mat) %>% print()
+    colnames(covariate_mat) %>% print()
     
-    xp_data.full = cbind(covariate_p_mat_center,
-                         xp_data.matrix_scale,
-                         xp_data.knockoff.sav_scale) %>%
-      as(Class = "dgCMatrix")
+    xp_data.full = 
+      cbind(covariate_mat_center, xp_data.full)
     
-    cv_lasso_fit = 
-      cv.glmnet(y = label_binom, x = xp_data.full, 
+    cv_lasso_fit =
+      cv.glmnet(y = label_binom,
+                x = xp_data.full,
                 nfolds = 10,
                 alpha = 1, # alpha = 1 means lasso
-                family = "binomial") 
+                family = "binomial",
+                standardize = TRUE)
     
     #############################
     # 1. Other than LCD_crit_use
@@ -565,30 +439,44 @@ for(nsim in 1:nSim){
     cv_lasso_fit_coef = coef(cv_lasso_fit, s = cv_lasso_fit_best_lambda) %>% t()
     cv_lasso_fit_coef = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) != "(Intercept)", drop = F]
     
-    cv_lasso_fit_coef_orig = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) %in% colnames(xp_data.matrix_scale)]
-    cv_lasso_fit_coef_ko = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) %in% colnames(xp_data.knockoff.sav_scale)]
+    cv_lasso_fit_coef_orig = cv_lasso_fit_coef[,match(colnames(xp_data.matrix) ,colnames(cv_lasso_fit_coef))]
+    
     
     print("Nonzero original")
     print(LCD_crit_not_use)
     (cv_lasso_fit_coef_orig != 0) %>% sum() %>% print()
     
-    W_imp = abs(cv_lasso_fit_coef_orig) - abs(cv_lasso_fit_coef_ko)
+    W_imp[1, ] = cv_lasso_fit_coef_orig %>% abs()
+    for (m_ko in 1:m_kos)
+    {
+      colnames_mth_ko = str_c(colnames(xp_data.matrix), "_", m_ko)
+      cv_lasso_fit_coef_mth_ko <- cv_lasso_fit_coef[, match(colnames_mth_ko, colnames(cv_lasso_fit_coef))]
+      
+      W_imp[1 + m_ko, ] = cv_lasso_fit_coef_mth_ko %>% abs()
+    }
     
     ##############################
     # 2. LCD_crit_use  
-    
     cv_lasso_fit_best_lambda_b = cv_lasso_fit[[LCD_crit_use]] #lambda.1se #lambda.min
     cv_lasso_fit_coef_b = coef(cv_lasso_fit, s = cv_lasso_fit_best_lambda_b) %>% t()
     cv_lasso_fit_coef_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) != "(Intercept)", drop = F]
     
-    cv_lasso_fit_coef_orig_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.matrix_scale)]
-    cv_lasso_fit_coef_ko_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.knockoff.sav_scale)]
-    print("Nonzero original")
+    cv_lasso_fit_coef_orig_b = cv_lasso_fit_coef_b[,match(colnames(xp_data.matrix) ,colnames(cv_lasso_fit_coef_b))]
+    
+    print("Nonzero original_b")
     print(LCD_crit_use)
     (cv_lasso_fit_coef_orig_b != 0) %>% sum() %>% print()
     
-    W_imp_b = abs(cv_lasso_fit_coef_orig_b) - abs(cv_lasso_fit_coef_ko_b)
+    W_imp_b[1, ] = cv_lasso_fit_coef_orig_b %>% abs()
+    for (m_ko in 1:m_kos)
+    {
+      colnames_mth_ko = str_c(colnames(xp_data.matrix), "_", m_ko)
+      cv_lasso_fit_coef_mth_ko_b = cv_lasso_fit_coef_b[,match(colnames_mth_ko, colnames(cv_lasso_fit_coef_b))]
+      
+      W_imp_b[1 + m_ko, ] = cv_lasso_fit_coef_mth_ko_b %>% abs()
+    }
     
+    # W_imp_b = W_imp
   }
   
   # calculate fdr and power (for testing purpose)
@@ -604,17 +492,40 @@ for(nsim in 1:nSim){
     W_imp_b[is.na(W_imp_b)] = 0
   }
   
-  threshold <- knockoff.threshold(W_imp)
+  W_max_ind = apply(W_imp,2,which.max)
+  W_max = sapply(1:length(W_max_ind), function(x) W_imp[W_max_ind[x],x])
+  W_med = sapply(1:length(W_max_ind), function(x) median(W_imp[-W_max_ind[x],x]))
   
-  selected <- which(W_imp >= threshold)
+  tau_stab <- (W_max - W_med)
+  kap = (W_max_ind==1 & tau_stab>0)
+  
+  ts = sort(c(0, abs(tau_stab)))
+  ratio = sapply(ts, function(t) (1/m_kos + 1/m_kos*sum((tau_stab >= t)*(1-kap)))/max(1, 
+                                                                              sum((tau_stab >= t)*(kap))))
+  ok = which(ratio <= 0.1)
+  threshold <- ifelse(length(ok) > 0, ts[ok[1]], Inf)
+  
+  selected <- which(tau_stab*kap >= threshold)
   
   print((length(selected) - sum(selected %in% sig_coef))/length(selected)) # FDR
   
   print(sum(selected %in% sig_coef)/length(sig_coef)) # Power
   
-  threshold <- knockoff.threshold(W_imp_b)
+  # bonferroni 
+  W_max_ind = apply(W_imp_b,2,which.max)
+  W_max = sapply(1:length(W_max_ind), function(x) W_imp_b[W_max_ind[x],x])
+  W_med = sapply(1:length(W_max_ind), function(x) median(W_imp_b[-W_max_ind[x],x]))
   
-  selected_b <- which(W_imp_b >= threshold)
+  tau_stab <- (W_max - W_med)
+  kap = (W_max_ind==1 & tau_stab>0)
+  
+  ts = sort(c(0, abs(tau_stab)))
+  ratio = sapply(ts, function(t) (1/m_kos + 1/m_kos*sum((tau_stab >= t)*(1-kap)))/max(1, 
+                                                                              sum((tau_stab >= t)*(kap))))
+  ok = which(ratio <= 0.1)
+  threshold <- ifelse(length(ok) > 0, ts[ok[1]], Inf)
+  
+  selected_b <- which(tau_stab*kap >= threshold)
   
   print((length(selected_b) - sum(selected_b %in% sig_coef))/length(selected_b)) # FDR
   
@@ -653,8 +564,8 @@ print(sprintf("Spent Computation Time (all sims): %02d:%02d:%02d", allsim_hours,
 # 5. Save the results
 ####
 
-data_name = "HuVascAD"
-method_name = "decomp"
+data_name = "SupParLob"
+method_name = "multiLR"
 
 if ((LCD_crit_use == "lambda.1se")&(testUse == "LCD"))
 {
@@ -662,10 +573,6 @@ if ((LCD_crit_use == "lambda.1se")&(testUse == "LCD"))
 } else {
   testUseFull = testUse
 }
-
-# batch_option # "with" "without" "permute"
-# CDR_impute_option # "with" "without"
-# CDR_p_compute_option # "with" "without"
 
 file_name = 
   str_c(data_name,
@@ -676,9 +583,6 @@ file_name =
         "_sgn", sign_strength,
         "_PC", PC,
         "_10llam", 10*llam,
-        "_batch", batch_option,
-        "_impCDR", CDR_impute_option,
-        "_compCDR", CDR_p_compute_option,
         "_nSim", nSim, 
         "_seed", seed_num,
         "_maxIterImp", max_iter_imp,

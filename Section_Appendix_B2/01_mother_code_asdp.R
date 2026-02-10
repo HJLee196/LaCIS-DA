@@ -55,8 +55,8 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 # 1-2. Read the dataset
 #### 
 
-superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
-# superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
+# superior_parietal_lobe = readRDS(file = 'path/to/combined_superior_parietal_lobe.rds')
+superior_parietal_lobe = readRDS(file = './combined_superior_parietal_lobe.rds')
 superior_parietal_lobe = UpdateSeuratObject(superior_parietal_lobe) 
 superior_parietal_lobe$sex <- ifelse(superior_parietal_lobe$sex=='female',1,0)
 
@@ -73,7 +73,7 @@ n_signal = 50
 PC = 30
 llam = 0.1 # max_singular X llam (0.1 in the original one)
 nSim = 1
-testUse = "LR" # c("wilcox_limma", "LR", "MAST", "LCD")
+testUse = "LCD" # c("wilcox_limma", "LR", "MAST", "LCD")
 LCD_crit_use = "lambda.1se"
 max_iter_imp = 100
 
@@ -146,26 +146,147 @@ covariate_names = c("sex", "CDR")
 colnames(covariate_mat) = covariate_names
 
 ####
-# 2. Generate knockoffs
+# 2. Impute missing components
 ####
 
 # Center target matrix, but only center the expressed parts.
 xp_data.matrix.fix <- (colSums(xp_data.matrix, na.rm = T))/xp_data.matrix.exp.count
 xp_data.matrix <- sweep(xp_data.matrix,2,xp_data.matrix.fix,FUN = "-")*(xp_data.matrix.exp)
 
+xp_data.matrix.imp = xp_data.matrix
+
+tmp = RunPCA(t(xp_data.matrix.imp), npcs = PC, verbose = F) # slot = "data", ???
+X_0 = tmp@cell.embeddings
+rm(tmp)
+
+X_0 <- cbind(covariate_mat,X_0)
+X_0 <- sweep(X_0,2,colMeans(X_0),FUN = "-")
+B_0 = solve(t(X_0)%*%X_0)%*%t(X_0)%*%xp_data.matrix.imp
+
+start_time_imp = Sys.time()
+
+lambda = lambda0(xp_data.matrix.imp)*llam 
+print(paste0("lambda: ",round(lambda/llam,2)))
+
+xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp,
+                                  Yl = xp_data.matrix,
+                                  Yl_exp = xp_data.matrix.exp,
+                                  Bl = B_0,
+                                  Xl = X_0,
+                                  PC = PC,
+                                  q_ncol = 2,
+                                  lambda = lambda)
+
+xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp_l[[1]],
+                                  Yl = xp_data.matrix,
+                                  Yl_exp = xp_data.matrix.exp,
+                                  Bl = xp_data.matrix.imp_l[[3]],
+                                  Xl = xp_data.matrix.imp_l[[2]],
+                                  PC = PC,
+                                  q_ncol = 2,
+                                  lambda = lambda)
+
+
+stop_crit_compare <- sum((xp_data.matrix.imp_l[[1]] - xp_data.matrix.imp)^2)
+
+stop_crit <- TRUE
+i <- 1
+while (stop_crit) {
+  xp_data.matrix.imp_l <- lm_impute(Yl_imp = xp_data.matrix.imp_l[[1]],
+                                    Yl = xp_data.matrix,
+                                    Yl_exp = xp_data.matrix.exp,
+                                    Bl = xp_data.matrix.imp_l[[3]],
+                                    Xl = xp_data.matrix.imp_l[[2]],
+                                    PC = PC,
+                                    q_ncol = 2,
+                                    lambda = lambda)
+  
+  loop_compare <- sum((xp_data.matrix.imp_l[[1]] - xp_data.matrix.imp_l[[2]] %*% (xp_data.matrix.imp_l[[3]]))^2*
+                        xp_data.matrix.exp)
+  cat("Iter - sc-softImpute:", i, "\n")
+  print(loop_compare)
+  stop_crit <- (loop_compare > stop_crit_compare/10) && (i < max_iter_imp)
+  
+  i <- i + 1
+}
+
+xp_data.matrix.imp = xp_data.matrix.imp_l[[1]]
+
+# Add noise to the imputed values
+err <- colSums((xp_data.matrix.imp - xp_data.matrix.imp_l[[2]] %*% (xp_data.matrix.imp_l[[3]]))^2)
+err <- err/(xp_data.matrix.exp.count-PC-2-1)
+
+n <- dim(xp_data.matrix.imp)[1]
+for(i in 1:length(err)){
+  xp_data.matrix.imp[,i] <- xp_data.matrix.imp[,i] + rnorm(n,0,sqrt(err[i]))*(1-xp_data.matrix.exp[,i])
+}
+
+end_time_imp = Sys.time()
+imp_total_seconds = as.numeric(difftime(end_time_imp , start_time_imp, units = "secs"))
+imp_hours <- floor(imp_total_seconds / 3600)
+imp_minutes <- floor((imp_total_seconds %% 3600) / 60)
+imp_seconds <- round(imp_total_seconds %% 60)
+print(sprintf("Spent Computation Time (Imputation): %02d:%02d:%02d", imp_hours, imp_minutes, imp_seconds))
+
+####
+# 3. Generate knockoffs
+####
+
+####
+# 3-1. Compute the covariance matrix
+####
+
+# Assemble X
+X <- xp_data.matrix.imp_l[[2]]
+coln.X <- colnames(X)
+coln.X[1] = "sex"
+colnames(X) = coln.X
+
+Q_index = 1:(ncol(X)-PC)
+A_index = (max(Q_index)+1):(max(Q_index)+PC)
+
+# X_hat: fixed and given
+X_mat = X[,Q_index]
+A_hat = X[,A_index]
+
+B0_hat = t(xp_data.matrix.imp_l[[3]])[,Q_index]
+B1_hat = t(xp_data.matrix.imp_l[[3]])[,A_index]
+
+Gamma_hat = (solve(t(X_mat) %*% X_mat) %*% t(X_mat) %*% A_hat) %>% t()
+U_hat = A_hat - (X_mat %*% t(Gamma_hat))
+SigmaA_hat = (t(U_hat) %*% U_hat)/nrow(U_hat)
+
+W_hat = xp_data.matrix.imp - (X_mat %*% t(B0_hat)) - (X_mat %*% t(Gamma_hat) %*% t(B1_hat))
+SigmaG_hat = diag(err) + (B1_hat %*% SigmaA_hat %*% t(B1_hat))
+
+## exlcude NAs
+excl_id <- which(is.na(diag(SigmaG_hat)))
+if(length(excl_id) > 0){
+  xp_data.matrix <- xp_data.matrix[,-excl_id]
+  SigmaG_hat <- SigmaG_hat[-excl_id,-excl_id]
+  feature.names.new <- feature.names.new[-excl_id]
+  xp_data.sub <- subset(x = test_data, features = feature.names.new)
+  xp_data.matrix.fix <- xp_data.matrix.fix[-excl_id]
+  xp_data.matrix.exp <- xp_data.matrix.exp[,-excl_id]
+  # W <- diag(W)[-excl_id]
+}
+
 rm(test_data)
 
-skip_to_next <- FALSE
+####
+# 3-2. Sample knockoffs
+####
+
+W_hat_imp = W_hat
 
 iter_time_start_KO = Sys.time()
 
-tryCatch(xp_data.knockoff <- create.second_order(xp_data.matrix,
-                                                 method = "asdp"),
-error = function(e) {skip_to_next <<- TRUE})
-
-if(skip_to_next) { 
-  print("knockoff fail")
-  return(NA) }   
+xp_data.knockoff = 
+  create.gaussian(W_hat_imp, 
+                  mu = rep(0, times = ncol(W_hat_imp)), 
+                  Sigma = SigmaG_hat,
+                  method = "asdp",
+                  diag_s = NULL)
 
 iter_time_end_KO = Sys.time()
 
@@ -173,27 +294,39 @@ KO_total_seconds = as.numeric(difftime(iter_time_end_KO, iter_time_start_KO, uni
 KO_hours <- floor(KO_total_seconds / 3600)
 KO_minutes <- floor((KO_total_seconds %% 3600) / 60)
 KO_seconds <- round(KO_total_seconds %% 60)
-print(sprintf("Spent Computation Time (KO): %02d:%02d:%02d", KO_hours, KO_minutes, KO_seconds)) 
+print(sprintf("Spent Computation Time (KO): %02d:%02d:%02d", KO_hours, KO_minutes, KO_seconds))
 
-## scale back the knockoff
+# scale back the knockoff
 
 xp_data.matrix <- sweep(xp_data.matrix,2,xp_data.matrix.fix,FUN = "+")*(xp_data.matrix.exp)
 
-xp_data.knockoff.sav <- t(t(xp_data.knockoff) + xp_data.matrix.fix)
-# Use only the expressed part
-xp_data.knockoff.sav <- xp_data.knockoff.sav*(xp_data.matrix.exp) + 0*(1 - xp_data.matrix.exp) # why the later part? just for the clarity?
+xp_data.knockoff.sav0 = xp_data.knockoff + (X_mat %*% t(B0_hat)) + (X_mat %*% t(Gamma_hat) %*% t(B1_hat))
+xp_data.knockoff.sav <- t(t(xp_data.knockoff.sav0) + xp_data.matrix.fix)
 
+# Use only the expressed part
+xp_data.knockoff.sav <- xp_data.knockoff.sav*(xp_data.matrix.exp) + 0*(1 - xp_data.matrix.exp) 
+
+rm(xp_data.matrix.imp_l)
 rm(xp_data.knockoff)
+rm(xp_data.knockoff.sav0)
+rm(SigmaG_hat)
+rm(Q_index, A_index)
+rm(X_mat, A_hat)
+rm(B0_hat, B1_hat)
+rm(Gamma_hat)
+rm(U_hat)
+rm(SigmaA_hat)
+rm(W_hat)
 
 ####
-# 3. Run Simulations
+# 4. Run simulations
 ####
 
 if (testUse == "wilcox_limma"){
   covariate_names = NULL
 }
 
-# hyperparam_used_list$imp_total_seconds = imp_total_seconds
+hyperparam_used_list$imp_total_seconds = imp_total_seconds
 hyperparam_used_list$KO_total_seconds = KO_total_seconds
 
 xp_data.matrix = xp_data.matrix %>% as(Class = "dgCMatrix")
@@ -215,7 +348,7 @@ for(nsim in 1:nSim){
   cat("p: ", p, "\n")
   
   set.seed(seed = seed_num + nsim)
-  # Generate coefficients
+  # Generate coefficients 
   
   xp_data.matrix_sd = xp_data.matrix %>% apply(2, sd)
   xp_data.matrix_scale = 
@@ -312,7 +445,8 @@ for(nsim in 1:nSim){
       cv.glmnet(y = label_binom, x = xp_data.full, 
                 nfolds = 10,
                 alpha = 1, # alpha = 1 means lasso
-                family = "binomial") 
+                family = "binomial",
+                standardize = TRUE) 
     
     #############################
     # 1. Other than LCD_crit_use
@@ -322,8 +456,11 @@ for(nsim in 1:nSim){
     cv_lasso_fit_coef = coef(cv_lasso_fit, s = cv_lasso_fit_best_lambda) %>% t()
     cv_lasso_fit_coef = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) != "(Intercept)", drop = F]
     
-    cv_lasso_fit_coef_orig = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) %in% colnames(xp_data.matrix_scale)]
-    cv_lasso_fit_coef_ko = cv_lasso_fit_coef[,colnames(cv_lasso_fit_coef) %in% colnames(xp_data.knockoff.sav_scale)]
+   
+    cv_lasso_fit_coef_orig = cv_lasso_fit_coef[, match(colnames(xp_data.matrix_scale), colnames(cv_lasso_fit_coef))]
+    # max(abs(cv_lasso_fit_coef_orig - cv_lasso_fit_coef_orig2))
+    cv_lasso_fit_coef_ko = cv_lasso_fit_coef[,match(colnames(xp_data.knockoff.sav_scale), colnames(cv_lasso_fit_coef))]
+    # max(abs(cv_lasso_fit_coef_ko - cv_lasso_fit_coef_ko2))
     
     print("Nonzero original")
     print(LCD_crit_not_use)
@@ -338,8 +475,14 @@ for(nsim in 1:nSim){
     cv_lasso_fit_coef_b = coef(cv_lasso_fit, s = cv_lasso_fit_best_lambda_b) %>% t()
     cv_lasso_fit_coef_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) != "(Intercept)", drop = F]
     
-    cv_lasso_fit_coef_orig_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.matrix_scale)]
-    cv_lasso_fit_coef_ko_b = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.knockoff.sav_scale)]
+    cv_lasso_fit_coef_orig_b = cv_lasso_fit_coef_b[,match(colnames(xp_data.matrix_scale), colnames(cv_lasso_fit_coef_b))]
+    # cv_lasso_fit_coef_orig_b2 = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.matrix_scale)]
+    # max(abs(cv_lasso_fit_coef_orig_b - cv_lasso_fit_coef_orig_b2))
+    
+    cv_lasso_fit_coef_ko_b = cv_lasso_fit_coef_b[,match(colnames(xp_data.knockoff.sav_scale), colnames(cv_lasso_fit_coef_b))]
+    # cv_lasso_fit_coef_ko_b2 = cv_lasso_fit_coef_b[,colnames(cv_lasso_fit_coef_b) %in% colnames(xp_data.knockoff.sav_scale)]
+    # max(abs(cv_lasso_fit_coef_ko_b - cv_lasso_fit_coef_ko_b2))
+    
     print("Nonzero original")
     print(LCD_crit_use)
     (cv_lasso_fit_coef_orig_b != 0) %>% sum() %>% print()
@@ -368,7 +511,7 @@ for(nsim in 1:nSim){
   print((length(selected) - sum(selected %in% sig_coef))/length(selected)) # FDR
   
   print(sum(selected %in% sig_coef)/length(sig_coef)) # Power
-  
+
   threshold <- knockoff.threshold(W_imp_b)
   
   selected_b <- which(W_imp_b >= threshold)
@@ -407,11 +550,11 @@ allsim_seconds <- round(allsim_total_seconds %% 60)
 print(sprintf("Spent Computation Time (all sims): %02d:%02d:%02d", allsim_hours, allsim_minutes, allsim_seconds))
 
 ####
-# 5. Save `Final Result
+# 5. Save the results
 ####
 
 data_name = "SupParLob"
-method_name = "naive"
+method_name = "asdp"
 
 if ((LCD_crit_use == "lambda.1se")&(testUse == "LCD"))
 {

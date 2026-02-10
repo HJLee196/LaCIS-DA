@@ -23,11 +23,11 @@ ebh <- function(E, alpha){
 }
 
 
-list_rda = list.files(pattern = ".rda$")
+list_rda = list.files(pattern = ".rda$", recursive = T)
 
 df_final_result = NULL
 
-target_FDR_set = c(0.1, 0.01)
+target_FDR_set = c(0.05)
 
 # i_rda = 1
 for (i_rda in 1:length(list_rda))
@@ -46,7 +46,7 @@ for (i_rda in 1:length(list_rda))
   
   llam_name = 
     rda_file_name_temp %>%
-    str_extract(pattern = "llam[[:digit:]]*") %>%
+    str_extract(pattern = "llam[[:digit:].]*") %>%
     str_replace(pattern = "testUse", replacement = "")
   
   sgn_name = 
@@ -162,7 +162,6 @@ for (i_rda in 1:length(list_rda))
   }
 }
 
-
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#CC79A7", "#C0C0C0")
 q_val_label = c(
   '0.005' = "q = 0.005",
@@ -199,70 +198,190 @@ llam_temp =
   str_replace(pattern = "^llam", replacement = "") %>%
   as.numeric()
 
-df_final_result$llam = (llam_temp*25.2) %>% as.factor()
+df_final_result$llam = (llam_temp*25.2) %>% as.factor() #252.0678
 
 df_final_result$FDP[is.na(df_final_result$FDP)] = 0
-
-pd = position_dodge2(width = 0.7, preserve = "single", padding = 0)
-
-font_size = 10
-
-upower =
-  df_final_result %>%
-  filter((llam %in% c("25.2", "75.6"))) %>%
-  ggplot(aes(x = llam, y = Power, fill = method)) +
-  geom_boxplot(width = 0.7, position = pd) + #fatten = 0, 
-  stat_summary(fun = mean, geom = "crossbar",
-               width = 0.7, linewidth = 0.2, position = pd, color = "#8B0000",
-               aes(group = interaction(llam, method))) + #
-  facet_grid(.~test_stat + target_FDR, labeller = as_labeller(q_val_test_label)) + 
-  theme(legend.position = "none",
-        axis.text=element_text(size = font_size - 1),
-        axis.title=element_text(size = font_size), #,face="bold"
-        strip.text.x = element_text(size = font_size - 1)) +
-  coord_cartesian(ylim = c(0, 1)) +
-  xlab("") + 
-  scale_fill_manual(breaks=c("asdp", "decomp", "LR","multidecomp", "multiLR", "edecomp", "eLR"),
-                    values=cbPalette)
-
-bfdr = 
-  df_final_result %>%
-  filter((llam %in% c("25.2", "75.6"))) %>%
-  ggplot(aes(x = llam, y = FDP, fill = method)) +
-  geom_boxplot(width = 0.7, position = pd) + #fatten = 0, 
-  stat_summary(fun = mean, geom = "crossbar",
-               width = 0.7, linewidth = 0.2, position = pd, color = "#8B0000",
-               aes(group = interaction(llam, method))) + #
-  facet_grid(.~test_stat + target_FDR, labeller = as_labeller(q_val_test_label)) + 
-  theme(legend.position = "none",
-        legend.title = element_text(size = font_size),
-        legend.text = element_text(size = font_size),
-        axis.text=element_text(size=font_size-1),
-        axis.title.y=element_text(size=font_size),
-        axis.title.x=element_text(size=font_size+5), #,face="bold"
-        strip.text.x = element_text(size = font_size - 1)) +
-  coord_cartesian(ylim = c(0, 0.25)) +
-  xlab(expression(lambda)) +
-  theme(legend.position="bottom")+
-  scale_fill_manual(breaks=c("asdp", "decomp", "LR","multidecomp", "multiLR", "edecomp", "eLR"),
-                    values=cbPalette, name = "Knockoff construction")
-
-
-full_plot = plot_grid(upower,bfdr, labels = c("A","B"), align = "v", rel_heights = c(1.4,1),
-                      nrow = 2,ncol = 1)
-
-full_plot
-
-jpeg(filename = "Sim41_Figure1_251215.jpeg", width = 10, height = 8, units = "in",
-     res = 300)
-print(full_plot)
-dev.off()
 
 final_summarize = 
   df_final_result %>%
   group_by(test_stat, method, llam, target_FDR) %>%
   summarise(avg_FDP = mean(FDP),
-            med_FDP = median(FDP),
-            avg_Power = mean(Power))
+            sd_FDP = sd(FDP),
+            avg_Power = mean(Power),
+            sd_Power = sd(Power))
 
-write.csv(x = final_summarize, file = "Sim41_Figure1.csv", row.names = F)
+col_values = c("avg_FDP", "sd_FDP", "avg_Power", "sd_Power")
+
+final_summarize =
+  final_summarize %>%
+  pivot_wider(names_from = "test_stat",
+              values_from = col_values,
+              names_glue = "{test_stat}_{.value}")
+
+col_idx = 
+  (matrix(1:16, nrow = 4, ncol = 4, byrow = T) %>% 
+     as.vector()) + 3
+
+final_summarize_ordered = final_summarize[,c(1,2,3, col_idx)]
+
+# write.csv(x = final_summarize_ordered, file = "Sim41_TableS4_asdp_smallLlam_251219.csv", row.names = F)
+
+# Decomp Naive BH
+
+list_rda = list.files(pattern = ".rda$", recursive = TRUE)
+idx_decompNaiveBH =
+  list_rda %>%
+  str_detect(pattern = "BH|naive")
+list_rda = list_rda[idx_decompNaiveBH]
+
+print(target_FDR_set)
+
+df_final_result2 = NULL
+
+for (i_rda in 1:length(list_rda))
+{
+  rda_file_name_temp = list_rda[i_rda]
+  
+  method_name =
+    rda_file_name_temp %>%
+    str_extract(pattern = "method[[:alpha:]]*") %>%
+    str_replace(pattern = "method", replacement = "")
+  
+  test_name = 
+    rda_file_name_temp %>%
+    str_extract(pattern = "testUse[[:alpha:][:digit:]]*") %>%
+    str_replace(pattern = "testUse", replacement = "")
+  
+  llam_name = 
+    rda_file_name_temp %>%
+    str_extract(pattern = "llam[[:digit:]]*") %>%
+    str_replace(pattern = "testUse", replacement = "")
+  
+  load(rda_file_name_temp)
+  
+  
+  # i_FinalResult = 1
+  for (i_FinalResult in 1:length(FinalResult))
+  {
+    FinalResult_temp = FinalResult[[i_FinalResult]]
+    
+    if (method_name == "BH") ################# IMPORTANT ################ 
+    {
+      W_imp_b_temp = FinalResult_temp$W_imp
+    } else {
+      W_imp_b_temp = FinalResult_temp$W_imp_b
+    }
+    sig_coef_temp = FinalResult_temp$sig_coef
+    
+    # i_target_FDR = 1
+    for (i_target_FDR in 1:length(target_FDR_set))
+    {
+      # col 
+      # method # test stat # target_FDR # FDP # Power
+      target_FDR_temp = target_FDR_set[i_target_FDR]
+      
+      if (method_name == "BH")
+      {
+        BH_p = p.adjust(p = W_imp_b_temp, method = "BH")
+        selected_b_temp = (1:length(BH_p))[BH_p < target_FDR_temp]
+        
+        print((length(selected_b_temp) - sum(selected_b_temp %in% sig_coef_temp))/length(selected_b_temp)) # FDR
+        FDP_temp = (length(selected_b_temp) - sum(selected_b_temp %in% sig_coef_temp))/length(selected_b_temp)
+        
+        print(sum(selected_b_temp %in% sig_coef_temp)/length(sig_coef_temp)) # Power
+        Power_temp = sum(selected_b_temp %in% sig_coef_temp)/length(sig_coef_temp)
+      } else {
+        threshold_temp <- knockoff.threshold(W_imp_b_temp, fdr = target_FDR_temp)
+        
+        selected_b_temp <- which(W_imp_b_temp >= threshold_temp)
+        
+        print((length(selected_b_temp) - sum(selected_b_temp %in% sig_coef_temp))/length(selected_b_temp)) # FDP
+        FDP_temp = (length(selected_b_temp) - sum(selected_b_temp %in% sig_coef_temp))/length(selected_b_temp)
+        
+        print(sum(selected_b_temp %in% sig_coef_temp)/length(sig_coef_temp)) # Power
+        Power_temp = sum(selected_b_temp %in% sig_coef_temp)/length(sig_coef_temp)
+      }
+      
+      df_sim_temp = data.frame(method = method_name, test_stat = test_name,
+                               target_FDR = target_FDR_temp, FDP = FDP_temp, Power = Power_temp,
+                               llam = llam_name)
+      
+      df_final_result2 = rbind(df_final_result2, df_sim_temp)
+      
+    }
+  }
+}
+
+
+cbPalette2 <- c("#E69F00", "#F0E442", "#009E73")
+
+q_val_test_label = c(
+  '0.005' = "q = 0.005",
+  '0.01' = "q = 0.01",
+  '0.05' = "q = 0.05",
+  '0.1' = "q = 0.1",
+  'MAST' = "MAST",
+  'wilcox' = "WRT",
+  'LR' = "LRT",
+  'LRT' = "LRT",
+  'LCD' = 'NOLCD',
+  "LCD1" = "LCD",
+  '1' = "sgn = 1",
+  '1.5' = "sgn = 1.5",
+  '2' = "sgn = 2",
+  '2.5' = "sgn = 2.5",
+  '3' = "sgn = 3"
+)
+
+df_final_result2$method = 
+  df_final_result2$method %>%
+  str_replace_all(pattern = "naive", replacement = "Gaussian")
+
+df_final_result2$method = factor(df_final_result2$method,
+                                levels = c("Gaussian", "BH"))
+
+llam_temp = 
+  df_final_result2$llam %>%
+  str_replace(pattern = "^llam", replacement = "") %>%
+  as.numeric()
+
+df_final_result2$llam = (llam_temp*0) %>% as.factor() #They are all zero actually
+
+df_final_result2$FDP[is.na(df_final_result2$FDP)] = 0
+
+# How well LCD is doing
+final_summarize2 = 
+  df_final_result2 %>%
+  # filter(test_stat == "LCD") %>%
+  group_by(test_stat, method, llam, target_FDR) %>%
+  summarise(avg_FDP = mean(FDP),
+            sd_FDP = sd(FDP),
+            avg_Power = mean(Power),
+            sd_Power = sd(Power))
+
+final_summarize2 =
+  final_summarize2 %>%
+  pivot_wider(names_from = "test_stat",
+              values_from = col_values,
+              names_glue = "{test_stat}_{.value}")
+
+col_idx = 
+  (matrix(1:16, nrow = 4, ncol = 4, byrow = T) %>% 
+     as.vector()) + 3
+
+final_summarize2_ordered = final_summarize2[,c(1,2,3, col_idx)]
+#Check if they have the same values for different llams
+
+final_summarize2_ordered = 
+  final_summarize2_ordered %>%
+  filter(llam == unique(final_summarize2_ordered$llam)[1]) %>%
+  mutate(llam = as.factor(0))
+
+final_summarize_ordered_full =
+  rbind(final_summarize_ordered,
+        final_summarize2_ordered)
+
+write.csv(x = final_summarize_ordered_full, 
+          file = "SimB2_TableS4.csv", row.names = F)
+
+

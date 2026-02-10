@@ -56,8 +56,8 @@ lm_impute = function(Yl_imp,Xl,Bl,Yl,Yl_exp,PC,q_ncol,lambda){
 # 1-2. Read the dataset
 #### 
 
-HuVascAD = readRDS(file = 'path/to/HuVascAD_seuratcluster3.rds')
-# HuVascAD = readRDS(file = './HuVascAD_seuratcluster3.rds')
+# HuVascAD = readRDS(file = 'path/to/HuVascAD_seuratcluster3.rds')
+HuVascAD = readRDS(file = './HuVascAD_seuratcluster3.rds')
 HuVascAD = subset(HuVascAD, cells = which(HuVascAD$region %in% "Hippocampus"))
 table_batch_sample = table(HuVascAD$sample, HuVascAD$batch)
 
@@ -82,6 +82,8 @@ CDR_p_compute_option = "with"
 
 impute_cov_names = c("CDR", "age", "age2", "gender", "batch")
 covariate_names = c("CDR", "age", "age2", "gender", "batch")
+
+batch_original = HuVascAD$batch
 
 if (batch_option == "permute") {
   batch_permuted = sample(HuVascAD$batch)
@@ -145,6 +147,9 @@ if(is.null(down)){
   
   test_data <- subset(HuVascAD, 
                       cells = which(names(HuVascAD$treat) %in% down_ind))
+  
+  batch_original = 
+    batch_original[match(x = names(test_data$treat), table = names(batch_original))]
 }
 rm(HuVascAD) # rm dataset to save memory
 
@@ -308,7 +313,7 @@ for(nsim in 1:nSim){
   
   # introduce the logit link
   label_p = 
-    (1/(1 + exp(- (xp_data.matrix_scale %*% norm_coef + 2*sign_strength*sqrt(2*log(p)/n)*as.numeric(xp_data.sub$batch)))
+    (1/(1 + exp(- (xp_data.matrix_scale %*% norm_coef + 2*sign_strength*sqrt(2*log(p)/n)*as.numeric(batch_original)))
     )) %>% 
     as.vector()
   rm(xp_data.matrix_scale)

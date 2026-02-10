@@ -1,4 +1,4 @@
-# ReadMe_Section 4.1
+# ReadMe_Section B2
 #Knockoffs
 
 - This document describes how to use the following simulation files:
@@ -11,8 +11,8 @@
   - `09_mother_code_naive.R`
 
 - It also describes the following summary files:
-  - `99_SummaryAll_0_Simulation4.1.R`
-  - `99_SummaryAll_0_Simulation4.1_appendix.R`
+  - `99_SummaryAll_0_Simulation B2.R`
+  - `99_SummaryAll_0_Simulation B2_appendix.R`
 
 1. Simulation files
    - Each simulation file runs simulations using one of the following knockoff methods:
@@ -32,17 +32,17 @@
      - `down`: The number of cells to be used (*n*).
        - Set to `NULL` to use all cells.
      - `gene.index`: A vector specifying the genes to be used (*p*).
-       - For Section 4.1, `gene.index` is `1:2000`
+       - For Section B2, `gene.index` is `1:2000`
      - `sign_strength`: The signal strength used to create synthetic signals.  
-       - In Section 4.1, this parameter is referred to as **`sgn`**.
+       - In Section B2, this parameter is referred to as **`sgn`**.
      - `n_signal`: The number of signals in the simulation.
      - `PC`: The number of latent factors.
-       - For Section 4.1, `PC` is `30`
+       - For Section B2, `PC` is `30`
      - `llam`: A scalar that controls the lambda value for sc-softImpute.
        - It can take any nonnegative value. The final lambda is computed by multiplying this value by the largest singular value of the data matrix. i.e., `llam*softImpute::lambda0(data.matrix)` is used.
      - `m_kos`: The number of knockoffs to generate for the multiple-knockoff procedure. (only for the multi-LR and multi-decomp codes).
      - `nSim`: The number of simulation replicates.
-       - For Section 4.1, `nSim = 20`.
+       - For Section B2, `nSim = 20`.
      - `testUse`: The method used to compute test statistics.  One of `"LCD"`, `"LR"`, `"MAST"`, or `"wilcox_limma"`. `"LCD"` cannot be used with the BH procedure. `"wilcox_limma"` does not use latent variables.
      - `max_iter_imp`: The maximum number of iterations allowed for sc-softImpute.
      
@@ -68,10 +68,10 @@
         - The list containing `W_imp` and `W_imp_b` is saved in the current directory (`getwd()`).
    
 2. Summary files
-   - `99_SummaryAll_0_Simulation4.1.R`
-     - This code reproduces Figure 1 in Section 4.1.
-   - `99_SummaryAll_0_Simulation4.1_appendix.R`
-     - This code reproduces Table S4 in Section B.3 of the Appendix.
+   - `99_SummaryAll_0_Simulation B2.R`
+     - This code reproduces Figure S5 in Section B2.
+   - `99_SummaryAll_0_Simulation B2_appendix.R`
+     - This code reproduces Table S4 in Section B2 of the Appendix.
 
    - The current working directory must be set to the directory where the `.rda` files are stored.
      - These `.rda` files contain the results generated in the final step of the simulation files described above.
@@ -81,5 +81,5 @@
    - Both scripts use `W_imp_b` (or `W_imp` for the BH procedure) from the `.rda` files to compute the FDP and power for the target FDR values specified in the `target_FDR_set` vector.
 
    - `target_FDR_set`: A vector containing target FDR values.
-     - For Figure 1, `target_FDR_set = c(0.1, 0.01)` is used.
+     - For Figure S5, `target_FDR_set = c(0.1, 0.01)` is used.
      - For Table S4, `target_FDR_set = 0.05` is used.

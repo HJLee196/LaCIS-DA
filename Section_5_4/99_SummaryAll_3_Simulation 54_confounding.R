@@ -198,7 +198,7 @@ final_summarize_type1 =
 
 
 final_summarize_name = 
-  str_c("Section42_Table1_LR",
+  str_c("Section54_Table2_LCD",
         "_Down", down_name)
 
 ###########
@@ -477,7 +477,7 @@ final_summarize_type1 =
             sd_Power = sd(Power))
 
 final_summarize_name = 
-  str_c("Section42_Table2_BH",
+  str_c("Section54_Table3_BH",
         "_Down", down_name)
 
 ###########

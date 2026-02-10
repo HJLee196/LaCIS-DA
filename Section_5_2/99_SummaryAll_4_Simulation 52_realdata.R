@@ -120,7 +120,7 @@ df_final_result$cell_PC_name =
 
 df_final_result$test_stat = 
   factor(df_final_result$test_stat,
-         levels = c("LCD1", "LR", "MAST", "wilcox", "RCD"))
+         levels = c("LCD1", "LR", "MAST", "wilcox"))
 
 df_final_result$method = 
   factor(df_final_result$method,
@@ -135,4 +135,4 @@ final_summarize =
 
 final_summarize
 
-write.csv(x = final_summarize, file = "Sim5_Table3.csv", row.names = F)
+write.csv(x = final_summarize, file = "Sim52_Table1.csv", row.names = F)
