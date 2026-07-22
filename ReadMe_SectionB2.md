@@ -69,9 +69,9 @@
    
 2. Summary files
    - `99_SummaryAll_0_Simulation B2.R`
-     - This code reproduces Figure S5 in Section B2.
+     - This code reproduces Figure S9 in Section B2.
    - `99_SummaryAll_0_Simulation B2_appendix.R`
-     - This code reproduces Table S5 in Section B2 of the Appendix.
+     - This code reproduces Table S6 in Section B2 of the Appendix.
 
    - The current working directory must be set to the directory where the `.rda` files are stored.
      - These `.rda` files contain the results generated in the final step of the simulation files described above.
@@ -81,5 +81,5 @@
    - Both scripts use `W_imp_b` (or `W_imp` for the BH procedure) from the `.rda` files to compute the FDP and power for the target FDR values specified in the `target_FDR_set` vector.
 
    - `target_FDR_set`: A vector containing target FDR values.
-     - For Figure S5, `target_FDR_set = c(0.1, 0.01)` is used.
-     - For Table S5, `target_FDR_set = 0.05` is used.
+     - For Figure S9, `target_FDR_set = c(0.1, 0.01)` is used.
+     - For Table S6, `target_FDR_set = 0.05` is used.
