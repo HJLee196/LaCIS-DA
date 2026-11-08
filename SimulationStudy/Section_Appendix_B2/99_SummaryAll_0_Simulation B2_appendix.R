@@ -382,6 +382,6 @@ final_summarize_ordered_full =
         final_summarize2_ordered)
 
 write.csv(x = final_summarize_ordered_full, 
-          file = "SimB2_TableS4.csv", row.names = F)
+          file = "SimB2_TableS6.csv", row.names = F)
 
 
