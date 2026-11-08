@@ -226,6 +226,7 @@ colnames(batch) =
 covariate_mat = 
   cbind(xp_data.sub$CDR, 
         xp_data.sub$age,
+        xp_data.sub$age^2,
         as.numeric(xp_data.sub$gender),
         samp, 
         batch)

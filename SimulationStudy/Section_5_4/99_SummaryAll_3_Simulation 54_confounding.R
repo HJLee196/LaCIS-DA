@@ -27,7 +27,7 @@ list_rda = list.files(pattern = ".rda$")
 
 df_final_result = NULL
 
-target_FDR_set = c(0.1)
+target_FDR_set = 0.1
 
 # i_rda = 1
 for (i_rda in 1:length(list_rda))
@@ -198,7 +198,7 @@ final_summarize_type1 =
 
 
 final_summarize_name = 
-  str_c("Section54_Table2_LCD",
+  str_c("Section54_Table2_LR",
         "_Down", down_name)
 
 ###########
@@ -477,7 +477,7 @@ final_summarize_type1 =
             sd_Power = sd(Power))
 
 final_summarize_name = 
-  str_c("Section54_Table3_BH",
+  str_c("Section54_TableS5_BH",
         "_Down", down_name)
 
 ###########

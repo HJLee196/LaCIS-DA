@@ -22,17 +22,19 @@ ebh <- function(E, alpha){
   return(list(rej = rej))
 }
 
-
-list_rda = list.files(pattern = ".rda$", recursive = TRUE)
+list_rda = list.files(pattern = ".rda$", recursive = T)
 
 df_final_result = NULL
 
 target_FDR_set = c(0.1, 0.01)
 
-# i_rda = 1
 for (i_rda in 1:length(list_rda))
 {
-  rda_file_name_temp = list_rda[i_rda]
+  rda_file_path_temp = list_rda[i_rda]
+  
+  rda_file_name_temp = 
+    rda_file_path_temp %>% 
+    str_extract(pattern = "[^///]*.rda$")
   
   method_name =
     rda_file_name_temp %>%
@@ -59,7 +61,7 @@ for (i_rda in 1:length(list_rda))
     next
   }
   
-  load(rda_file_name_temp)
+  load(rda_file_path_temp)
   
   # i_FinalResult = 1
   for (i_FinalResult in 1:length(FinalResult))
@@ -162,7 +164,11 @@ for (i_rda in 1:length(list_rda))
   }
 }
 
-
+# num_method * nSim * targetFDR * test
+# 7*20*2*3 = 840
+# num_method * nSim * targetFDR * test * llam
+# "#C0C0C0" Light gray
+#"#D55E00" Orange
 cbPalette <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#CC79A7", "#C0C0C0")
 q_val_label = c(
   '0.005' = "q = 0.005",
@@ -188,7 +194,11 @@ q_val_test_label = c(
   "multidecomp" = "Multidecomp", 
   "multiLR" = "MultiLR", 
   "edecomp" = "Edecomp", 
-  "eLR" = "ELR"
+  "eLR" = "ELR"  #,
+  # "llam0" = "llam0",
+  # "llam1" = "llam1",
+  # "llam2" = "llam2",
+  # "llam3" = "llam3"
 )
 
 df_final_result$method = factor(df_final_result$method,
@@ -200,6 +210,9 @@ llam_temp =
   as.numeric()
 
 df_final_result$llam = (llam_temp*25.2) %>% as.factor() #252.0678
+
+# df_final_result$llam = factor(df_final_result$llam,
+#                               levels = c("llam0", "llam1", "llam2", "llam3"))
 
 df_final_result$FDP[is.na(df_final_result$FDP)] = 0
 
@@ -253,16 +266,18 @@ full_plot = plot_grid(upower,bfdr, labels = c("A","B"), align = "v", rel_heights
 
 full_plot
 
-jpeg(filename = "SimB2_FigureS5.jpeg", width = 10, height = 8, units = "in",
+jpeg(filename = "SimB2_Observed_FigureS11.jpeg", width = 10, height = 8, units = "in",
      res = 300)
 print(full_plot)
 dev.off()
 
+# How well LCD is doing
 final_summarize = 
   df_final_result %>%
+  # filter(test_stat == "LCD") %>%
   group_by(test_stat, method, llam, target_FDR) %>%
   summarise(avg_FDP = mean(FDP),
             med_FDP = median(FDP),
             avg_Power = mean(Power))
 
-write.csv(x = final_summarize, file = "SimB2_FigureS5.csv", row.names = F)
+write.csv(x = final_summarize, file = "SimB2_Observed_FigureS11.csv", row.names = F)
